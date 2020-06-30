@@ -9,4 +9,3 @@ slow_text("He was very...")
 sleep(1)
 slow_text("EVIL!!!", 3)
 
-
