@@ -17,7 +17,6 @@ pygame.display.set_caption("Single Screen Platformer")
 
 # Load all images.
 PLAYER_IMAGE = pygame.image.load(os.path.join("assets", "player.png"))
-PLATFORM_IMAGE = pygame.image.load(os.path.join("assets", "platform.png"))
 FINISH_IMAGE = pygame.image.load(os.path.join("assets", "finish.png"))
 BG = pygame.transform.scale(pygame.image.load(os.path.join("assets", "background.png")), (WIDTH, HEIGHT))
 
