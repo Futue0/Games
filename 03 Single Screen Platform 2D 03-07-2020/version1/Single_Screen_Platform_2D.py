@@ -1,69 +1,99 @@
 # Robin Vize 03-07-2020.
 # 2D platformer with everything on a single screen.
 # The most basic 2D platformer possible and first game with pyglet.
-# Main menu, win condition, single screen.
+# Platforms with collision, win condition, single screen.
 
-### Structure from Astraea example:
-###
-###     imports
-###     GLOBAL constants
-###
-###     global functions (used in objects below so called here)
-###     game objects (classes)
-###     UI objects (classes)
-###
-###     global functions (~mostly~ not used in objects)
-###     window setup + decorators
-###     resources setup
-###     global game state variables
-###     game update function
-###     pyglet.clock -> pyglet.app.run()
 
 import pyglet
 from pyglet.window import key
+import load
+
+
+# GLOBALS.
+WINDOW_WIDTH, WINDOW_HEIGHT = 800, 800
 
 
 # IMAGES.
-# Set path to correct folder.
-pyglet.resource.path = ['../assets']
-pyglet.resource.reindex()
+load.load_path('../assets')
 
-# Load image files.
-icon1 = pyglet.resource.image('16x16.png')
-icon2 = pyglet.resource.image('32x32.png')
 background_image = pyglet.resource.image('background.png')
 platform_image = pyglet.resource.image('platform.png')
 finish_image = pyglet.resource.image('finish.png')
 player_image = pyglet.resource.image('player.png')
 
+# Sprites.
+batch = pyglet.graphics.Batch()
+player = pyglet.sprite.Sprite(player_image, batch=batch)
+finish = pyglet.sprite.Sprite(finish_image, x=700, y=700, batch=batch)
+
+platform1 = pyglet.sprite.Sprite(platform_image, x=100, y=100, batch=batch)
+platform2 = pyglet.sprite.Sprite(platform_image, x=200, y=200, batch=batch)
+platform3 = pyglet.sprite.Sprite(platform_image, x=400, y=400, batch=batch)
+
+
+# PLAYER.
+player_vel = WINDOW_WIDTH // 2
+player_jump = 500
+
 
 # WINDOW.
-# Game (and only) window.
-WINDOW_WIDTH, WINDOW_HEIGHT = 800, 800
 window = pyglet.window.Window(width=WINDOW_WIDTH, height=WINDOW_HEIGHT, caption='Single Screen Platformer')
-window.set_icon(icon1, icon2)
-
-quest_label = pyglet.text.Label('Reach the heart to win',
-                          font_name='Times New Roman',
-                          font_size=24,
-                          bold=True,
-                          color=(0, 0, 0, 255),
-                          x=window.width//2, y=window.height-50,
-                          anchor_x='center', anchor_y='center')
+window.set_icon(pyglet.resource.image('16x16.png'), pyglet.resource.image('32x32.png'))
+keyboard = key.KeyStateHandler()
+window.push_handlers(keyboard)
+window.push_handlers(player)
 
 @window.event
 def on_key_press(symbol, modifiers):
-    if symbol == key.A:
-        pass # move left
-    elif symbol == key.D:
-        pass # move right
-    elif symbol == key.SPACE:
-        pass # jump
+    # key presses here are only single activation so not good for player controls
+    pass
 
 @window.event
 def on_draw():
     window.clear()
     background_image.blit(0, 0, width=window.width, height=window.height)
-    quest_label.draw()
+    batch.draw()
 
+
+# TEXT.
+quest_label = pyglet.text.Label('Reach the heart to win',
+                          font_name='Times New Roman',
+                          font_size=24,
+                          bold=True,
+                          batch=batch,
+                          color=(0, 0, 0, 255),
+                          x=window.width//2, y=window.height-50,
+                          anchor_x='center', anchor_y='center')
+
+
+# COLLISIONS.
+def is_collide():
+    pass
+
+
+# UPDATER.
+def polling_updater(dt):
+    # keep in bounds
+    left_bound = True if player.x <= 0 else False
+    right_bound = True if player.x + 50 >= WINDOW_WIDTH else False
+    top_bound = True if player.y + 50 >= WINDOW_HEIGHT else False
+    ground_bound = True if player.y <= 0 else False
+    
+    # player controls
+    if keyboard[key.D] and not right_bound:
+        player.x += player_vel * dt
+    if keyboard[key.A] and not left_bound:
+        player.x -= player_vel * dt
+    if keyboard[key.SPACE]:
+        player.y += player_jump * dt
+
+    # gravity
+    player.y -= player_jump // 4 * dt
+
+# This sets the background clock to run polling_updater at 120 FPS.
+pyglet.clock.schedule_interval(polling_updater, 1 / 120)
+
+
+# RUN!
 pyglet.app.run()
+
