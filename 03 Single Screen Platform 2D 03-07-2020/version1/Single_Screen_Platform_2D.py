@@ -33,7 +33,7 @@ platform3 = pyglet.sprite.Sprite(platform_image, x=400, y=400, batch=batch)
 
 # PLAYER.
 player_vel = WINDOW_WIDTH // 2
-player_jump = 500
+player_jump = 4000
 
 
 # WINDOW.
@@ -67,13 +67,22 @@ quest_label = pyglet.text.Label('Reach the heart to win',
 
 
 # COLLISIONS.
-def is_collide():
+def is_collide(obj1, obj2):
     pass
 
 
 # UPDATER.
+state = {
+    'idle': True,
+    'moving_left': False,
+    'moving_right': False,
+    'jumping': False,
+    'jumping_left': False,
+    'jumping_right': False
+}
+
 def polling_updater(dt):
-    # keep in bounds
+    # keep player in bounds
     left_bound = True if player.x <= 0 else False
     right_bound = True if player.x + 50 >= WINDOW_WIDTH else False
     top_bound = True if player.y + 50 >= WINDOW_HEIGHT else False
@@ -81,14 +90,23 @@ def polling_updater(dt):
     
     # player controls
     if keyboard[key.D] and not right_bound:
+        state['idle'] = False
+        state['moving_left'] = False
+        state['moving_right'] = True
         player.x += player_vel * dt
     if keyboard[key.A] and not left_bound:
+        state['idle'] = False
+        state['moving_left'] = True
+        state['moving_right'] = False
         player.x -= player_vel * dt
     if keyboard[key.SPACE]:
-        player.y += player_jump * dt
+        state['jumping'] = True
+        if ground_bound:
+            player.y += player_jump * dt
 
     # gravity
-    player.y -= player_jump // 4 * dt
+    if not ground_bound:
+        player.y -= (player_jump / 20) * dt
 
 # This sets the background clock to run polling_updater at 120 FPS.
 pyglet.clock.schedule_interval(polling_updater, 1 / 120)
