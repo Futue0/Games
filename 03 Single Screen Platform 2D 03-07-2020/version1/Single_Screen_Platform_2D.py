@@ -11,7 +11,7 @@ import load
 
 # GLOBALS.
 WINDOW_WIDTH, WINDOW_HEIGHT = 800, 800
-
+GAME_WON = False
 
 # IMAGES.
 load.load_path('../assets')
@@ -24,17 +24,30 @@ player_image = pyglet.resource.image('player.png')
 # Sprites.
 batch = pyglet.graphics.Batch()
 player = pyglet.sprite.Sprite(player_image, batch=batch)
-finish = pyglet.sprite.Sprite(finish_image, x=700, y=700, batch=batch)
+finish = pyglet.sprite.Sprite(finish_image, x=50, y=700, batch=batch)
 
-platform1 = pyglet.sprite.Sprite(platform_image, x=150, y=30, batch=batch)
-platform2 = pyglet.sprite.Sprite(platform_image, x=200, y=200, batch=batch)
-platform3 = pyglet.sprite.Sprite(platform_image, x=400, y=400, batch=batch)
+x_pos = 0
+y_pos = 0
+x_step = 110
+y_step = 45
+platforms = []
 
+for i in range(7):
+    x_pos += x_step
+    y_pos += y_step
+    platform = pyglet.sprite.Sprite(platform_image, x=x_pos, y=y_pos, batch=batch)
+    platforms.append(platform)
+
+for i in range(7):
+    x_pos -= x_step
+    y_pos += y_step
+    platform = pyglet.sprite.Sprite(platform_image, x=x_pos, y=y_pos, batch=batch)
+    platforms.append(platform)
 
 # PLAYER.
 player_vel = WINDOW_WIDTH // 2
-player_jump = 4000
-player_fall = 20
+player_jump = 6000
+player_fall = 30 # higher = slower falling
 
 
 # WINDOW.
@@ -55,6 +68,9 @@ def on_draw():
     background_image.blit(0, 0, width=window.width, height=window.height)
     batch.draw()
 
+    if GAME_WON:
+        win_label.draw()
+
 
 # TEXT.
 quest_label = pyglet.text.Label(
@@ -65,6 +81,16 @@ quest_label = pyglet.text.Label(
     batch=batch,
     color=(0, 0, 0, 255),
     x=window.width//2, y=window.height-50,
+    anchor_x='center', anchor_y='center'
+)
+
+win_label = pyglet.text.Label(
+    'YOU GOT HEART. YOU WIN!',
+    font_name='Times New Roman',
+    font_size=40,
+    bold=True,
+    color=(50, 50, 50, 255),
+    x=window.width//2, y=window.height//2,
     anchor_x='center', anchor_y='center'
 )
 
@@ -110,6 +136,9 @@ def is_collide(player, platform):
     elif (play_min_x < brx < play_max_x and play_min_y < bry < play_max_y) or (play_min_x < trx < play_max_x and play_min_y < tryy < play_max_y):
         return "player_stop_left"
 
+    # otherwise, no collisions at all
+    return None
+
 # UPDATER.
 state = { # sort of state machine dict
     'idle': True,
@@ -120,39 +149,55 @@ state = { # sort of state machine dict
     'jumping_right': False
 }
 
-limited_movement = False
-limiting_factor = 3
-
 def polling_updater(dt):
+    # using this to allow player to have directional movement whilst falling from an idle (standing) jump
+    # but limiting the control so running jumps feel more powerful
+    global limited_movement
+    limiting_factor = 2
+
     # keep player in bounds
     left_bound = True if player.x <= 0 else False
     right_bound = True if player.x + 50 >= WINDOW_WIDTH else False
     # top_bound not used because finish heart is top corner
-    # and think it would be annoying if player hit ceiling
+    # and think it would be annoying if player hit the ceiling
     ground_bound = True if player.y <= 0 else False
     
+    # check player collisions with all platforms
+    collision_check = None
+    for platform in platforms:
+        if is_collide(player, platform) != None:
+            collision_check = is_collide(player, platform)
+
+    # check player-finish condition (game won)
+    if is_collide(player, finish) != None:
+        GAME_WON = True
+    ### NOTE: can't get this to equate to the winning text appearing on window when you actually reach the heart ###
+
     # player controls
     if keyboard[key.D] and not right_bound and not state['jumping_left']:
         state['idle'] = False
         state['moving_left'] = False
         state['moving_right'] = True
-        if limited_movement:
-            player.x += (player_vel / limiting_factor) * dt
-        else:
-            player.x += player_vel * dt
+        if collision_check != "player_stop_right":
+            if limited_movement:
+                player.x += (player_vel / limiting_factor) * dt
+            else:
+                player.x += player_vel * dt
     elif keyboard[key.A] and not left_bound and not state['jumping_right']:
         state['idle'] = False
         state['moving_left'] = True
         state['moving_right'] = False
-        if limited_movement:
-            player.x -= (player_vel / limiting_factor) * dt
-        else:
-            player.x -= player_vel * dt
+        if collision_check != "player_stop_left":
+            if limited_movement:
+                player.x -= (player_vel / limiting_factor) * dt
+            else:
+                player.x -= player_vel * dt
     else:
         state['idle'] = True
 
-    if keyboard[key.SPACE] and ground_bound:
+    if keyboard[key.SPACE] and (ground_bound or collision_check == "player_landed"):
         if state['idle']:
+            limited_movement = True
             state['idle_jumping'] = True
         elif state['moving_left']:
             state['jumping_left'] = True
@@ -162,12 +207,14 @@ def polling_updater(dt):
         player.y += player_jump * dt
 
     # gravity
-    if not ground_bound: # player falls
+    if not ground_bound and collision_check != "player_landed": # player falls
         player.y -= (player_jump / player_fall) * dt
     else: # player is now on ground
+        limited_movement = False
         state['idle_jumping'] = False
         state['jumping_left'] = False
         state['jumping_right'] = False
+
 
 # This sets the background clock to run polling_updater at 120 FPS.
 pyglet.clock.schedule_interval(polling_updater, 1 / 120)
